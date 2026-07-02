@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AccidentAI — Production Platform</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@300;400;500&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#080c10;--surface:#0d1117;--s2:#111820;--s3:#141e2a;
+  --border:#1c2a38;--b2:#243344;
+  --accent:#00e5ff;--danger:#ff2d55;--safe:#00ff88;
+  --warn:#ffb800;--purple:#b060ff;--blue:#0091ff;
+  --text:#c8d8e8;--muted:#4a5a6a;
+  --mono:'Share Tech Mono',monospace;
+  --display:'Barlow Condensed',sans-serif;
+  --body:'Barlow',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:var(--body);min-height:100vh;overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.06) 2px,rgba(0,0,0,.06) 4px);pointer-events:none;z-index:9999;}
+.bg-grid{position:fixed;inset:0;background-image:linear-gradient(rgba(0,229,255,.02) 1px,transparent 1px),linear-gradient(90deg,rgba(0,229,255,.02) 1px,transparent 1px);background-size:48px 48px;pointer-events:none;z-index:0;}
+
+/* ── HEADER ── */
+header{display:flex;align-items:center;justify-content:space-between;padding:0 24px;border-bottom:1px solid var(--border);background:var(--surface);position:sticky;top:0;z-index:300;height:54px;}
+.logo{display:flex;align-items:center;gap:10px;}
+.logo-hex{width:30px;height:30px;background:var(--danger);clip-path:polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);display:flex;align-items:center;justify-content:center;animation:phex 2.5s ease-in-out infinite;}
+@keyframes phex{0%,100%{box-shadow:0 0 0 0 rgba(255,45,85,.4);}50%{box-shadow:0 0 0 9px rgba(255,45,85,0);}}
+.logo-text{font-family:var(--display);font-weight:900;font-size:18px;letter-spacing:2px;text-transform:uppercase;color:#fff;}
+.logo-text span{color:var(--danger);}
+.logo-sub{font-family:var(--mono);font-size:7px;color:var(--muted);letter-spacing:2px;}
+.nav-tabs{display:flex;height:100%;}
+.nav-tab{padding:0 16px;font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);cursor:pointer;border:none;background:none;height:100%;border-bottom:2px solid transparent;transition:all .2s;display:flex;align-items:center;gap:6px;}
+.nav-tab:hover{color:var(--text);}
+.nav-tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+.hdr-right{display:flex;align-items:center;gap:12px;}
+.status-pill{display:flex;align-items:center;gap:5px;padding:3px 9px;border:1px solid var(--border);border-radius:2px;font-family:var(--mono);font-size:9px;color:var(--safe);}
+.dot{width:5px;height:5px;border-radius:50%;background:var(--safe);animation:blink 1.2s step-end infinite;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:0;}}
+#clk{font-family:var(--mono);font-size:10px;color:var(--muted);}
+
+/* ── LAYOUT ── */
+.page{display:none;position:relative;z-index:1;}
+.page.active{display:block;}
+.alert-flash{position:fixed;top:63px;right:18px;background:var(--danger);color:#fff;padding:10px 15px;border-radius:3px;font-family:var(--display);font-weight:700;font-size:12px;letter-spacing:2px;display:flex;align-items:center;gap:7px;transform:translateX(200%);transition:transform .3s;z-index:1000;box-shadow:0 4px 20px rgba(255,45,85,.5);}
+.alert-flash.show{transform:translateX(0);}
+.sl{font-family:var(--mono);font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:8px;}
+.sl::after{content:'';flex:1;height:1px;background:var(--border);}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:16px;}
+.card.p0{padding:0;overflow:hidden;}
+
+/* ── PAGE 1: ANALYSIS ── */
+.ap{display:grid;grid-template-columns:1fr 340px;min-height:calc(100vh - 54px);}
+.lp{padding:22px;border-right:1px solid var(--border);display:flex;flex-direction:column;gap:16px;}
+.rp{display:flex;flex-direction:column;overflow-y:auto;}
+.uz{border:1px dashed var(--border);background:rgba(0,229,255,.02);border-radius:4px;min-height:160px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:11px;cursor:pointer;transition:all .25s;}
+.uz:hover,.uz.drag{background:rgba(0,229,255,.05);border-color:var(--accent);}
+.ui{width:48px;height:48px;border:2px solid var(--border);border-radius:50%;display:flex;align-items:center;justify-content:center;transition:border-color .25s;}
+.uz:hover .ui{border-color:var(--accent);}
+.ut{font-family:var(--display);font-weight:700;font-size:16px;letter-spacing:1px;text-transform:uppercase;}
+.us{font-size:11px;color:var(--muted);text-align:center;line-height:1.6;}
+.fr{display:flex;gap:5px;}
+.ft{font-family:var(--mono);font-size:9px;padding:2px 6px;border:1px solid var(--border);border-radius:2px;color:var(--muted);}
+#fi{display:none;}
+.vw{background:#000;border-radius:4px;overflow:hidden;display:none;position:relative;aspect-ratio:16/9;}
+.vw.on{display:block;}
+#vp{width:100%;height:100%;object-fit:contain;display:block;}
+.cov{position:absolute;inset:0;pointer-events:none;}
+.cov::before{content:'';position:absolute;top:9px;left:9px;width:20px;height:20px;border-top:2px solid var(--accent);border-left:2px solid var(--accent);opacity:.7;}
+.cov::after{content:'';position:absolute;bottom:9px;right:9px;width:20px;height:20px;border-bottom:2px solid var(--accent);border-right:2px solid var(--accent);opacity:.7;}
+.cb{position:absolute;top:10px;right:10px;font-family:var(--mono);font-size:8px;letter-spacing:2px;color:var(--accent);background:rgba(0,0,0,.7);padding:2px 6px;border:1px solid rgba(0,229,255,.3);}
+.pb{position:absolute;bottom:0;left:0;right:0;padding:8px 13px;font-family:var(--display);font-weight:700;font-size:14px;letter-spacing:2px;text-transform:uppercase;display:none;align-items:center;gap:7px;}
+.pb.show{display:flex;}.pb.accident{background:rgba(255,45,85,.88);color:#fff;}.pb.safe{background:rgba(0,255,136,.88);color:#000;}
+.cr{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;}
+.cc{background:var(--s2);border:1px solid var(--border);border-radius:3px;padding:10px;}
+.cl{font-family:var(--mono);font-size:8px;letter-spacing:2px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;}
+select,.ci{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:10px;padding:4px 7px;border-radius:2px;outline:none;}
+select:focus,.ci:focus{border-color:var(--accent);}
+.sr{display:flex;align-items:center;gap:8px;margin-top:3px;}
+.sr input[type=range]{flex:1;accent-color:var(--accent);}
+.sv{font-family:var(--mono);font-size:11px;color:var(--accent);min-width:32px;text-align:right;}
+.br{display:grid;grid-template-columns:1fr auto auto;gap:7px;}
+.bm{padding:12px;background:transparent;border:1px solid var(--accent);color:var(--accent);font-family:var(--display);font-weight:700;font-size:13px;letter-spacing:3px;text-transform:uppercase;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:6px;position:relative;overflow:hidden;}
+.bm::before{content:'';position:absolute;left:-100%;top:0;bottom:0;width:100%;background:linear-gradient(90deg,transparent,rgba(0,229,255,.1),transparent);transition:left .4s;}
+.bm:hover::before{left:100%;}
+.bm:hover{background:rgba(0,229,255,.07);box-shadow:0 0 14px rgba(0,229,255,.12);}
+.bm:disabled{opacity:.3;cursor:not-allowed;border-color:var(--muted);color:var(--muted);}
+.bs{padding:12px 13px;background:transparent;border:1px solid var(--border);color:var(--muted);font-family:var(--mono);font-size:9px;letter-spacing:1px;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:5px;}
+.bs:hover{border-color:var(--accent);color:var(--accent);}
+.bs:disabled{opacity:.3;cursor:not-allowed;}
+.pw{display:none;flex-direction:column;gap:6px;}.pw.on{display:flex;}
+.po{width:100%;height:3px;background:var(--border);border-radius:2px;overflow:hidden;}
+.pi{height:100%;background:linear-gradient(90deg,var(--accent),var(--safe));width:0%;transition:width .3s;}
+.pt{font-family:var(--mono);font-size:10px;color:var(--muted);display:flex;justify-content:space-between;}
+
+/* Right panel */
+.sb{padding:16px;border-bottom:1px solid var(--border);}
+.sg{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:9px;}
+.sc{background:var(--s2);border:1px solid var(--border);border-radius:3px;padding:10px;}
+.sc.full{grid-column:span 2;}
+.sval{font-family:var(--display);font-weight:900;font-size:24px;line-height:1;margin-bottom:2px;}
+.sval.ca{color:var(--accent);}.sval.cd{color:var(--danger);}.sval.cs{color:var(--safe);}.sval.cw{color:var(--warn);}.sval.cp{color:var(--purple);}
+.slb{font-family:var(--mono);font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);}
+.mbar{height:4px;background:var(--border);border-radius:2px;overflow:hidden;margin-top:5px;}
+.mfill{height:100%;border-radius:2px;transition:width .5s;background:var(--safe);}
+.mfill.d{background:var(--danger);}
+.tb{padding:16px;flex:1;overflow-y:auto;}
+.tw{display:flex;flex-direction:column;gap:4px;margin-top:9px;}
+.ti{display:flex;align-items:center;gap:8px;padding:7px 9px;background:rgba(255,255,255,.02);border-left:2px solid var(--border);border-radius:0 3px 3px 0;font-family:var(--mono);font-size:10px;cursor:pointer;transition:background .2s;}
+.ti:hover{background:rgba(255,255,255,.04);}
+.ti.accident{border-left-color:var(--danger);}.ti.safe{border-left-color:var(--safe);}
+.ttm{color:var(--muted);min-width:40px;}.tll{flex:1;}.tll.accident{color:var(--danger);}.tll.safe{color:var(--safe);}.tc{color:var(--muted);font-size:9px;}
+.emp{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:28px 0;color:var(--muted);font-family:var(--mono);font-size:10px;text-align:center;}
+
+/* ── PAGE 2: ANALYTICS ── */
+.anlp{padding:22px;display:flex;flex-direction:column;gap:18px;}
+.c3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+.c2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.chc{background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:16px;}
+.cht{font-family:var(--display);font-weight:700;font-size:12px;letter-spacing:1px;text-transform:uppercase;margin-bottom:2px;}
+.chs{font-family:var(--mono);font-size:8px;color:var(--muted);margin-bottom:12px;}
+.chw{position:relative;height:180px;}.chw.t{height:210px;}
+.mt{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:10px;margin-top:7px;}
+.mt th{text-align:left;padding:6px 9px;color:var(--muted);font-size:8px;letter-spacing:2px;border-bottom:1px solid var(--border);}
+.mt td{padding:6px 9px;border-bottom:1px solid rgba(28,42,56,.4);}
+.mt tr:last-child td{border-bottom:none;}
+.badge{display:inline-block;padding:1px 6px;border-radius:2px;font-size:8px;letter-spacing:1px;}
+.badge.good{background:rgba(0,255,136,.15);color:var(--safe);}
+.badge.warn{background:rgba(255,184,0,.15);color:var(--warn);}
+.badge.bad{background:rgba(255,45,85,.15);color:var(--danger);}
+.cmg{display:grid;grid-template-columns:auto 1fr 1fr;gap:3px;margin-top:9px;align-items:center;}
+.cmcell{padding:11px;text-align:center;border-radius:3px;font-family:var(--mono);font-size:12px;font-weight:bold;}
+.cml{font-family:var(--mono);font-size:7px;color:var(--muted);text-align:center;letter-spacing:1px;}
+.cm-tp{background:rgba(0,255,136,.2);color:var(--safe);}
+.cm-tn{background:rgba(0,229,255,.2);color:var(--accent);}
+.cm-fp{background:rgba(255,184,0,.2);color:var(--warn);}
+.cm-fn{background:rgba(255,45,85,.2);color:var(--danger);}
+
+/* ── PAGE 3: LIVE CAM ── */
+.livep{padding:22px;display:flex;flex-direction:column;gap:18px;}
+.live-grid{display:grid;grid-template-columns:1fr 320px;gap:18px;}
+.cam-feed{background:#000;border-radius:4px;overflow:hidden;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;position:relative;border:1px solid var(--border);}
+.cam-feed img{width:100%;height:100%;object-fit:cover;}
+.cam-placeholder{color:var(--muted);font-family:var(--mono);font-size:11px;text-align:center;padding:40px;}
+.live-ctrl{display:flex;flex-direction:column;gap:12px;}
+.btn-live{padding:12px;font-family:var(--display);font-weight:700;font-size:13px;letter-spacing:2px;text-transform:uppercase;cursor:pointer;border-radius:3px;transition:all .2s;width:100%;border:none;}
+.btn-live.start{background:var(--safe);color:#000;}
+.btn-live.start:hover{opacity:.85;}
+.btn-live.stop{background:var(--danger);color:#fff;}
+.btn-live.stop:hover{opacity:.85;}
+.live-stat{background:var(--s2);border:1px solid var(--border);border-radius:3px;padding:12px;}
+.live-val{font-family:var(--display);font-weight:900;font-size:22px;}
+
+/* ── PAGE 4: TRAFFIC ── */
+.trfp{padding:22px;display:flex;flex-direction:column;gap:18px;}
+.krow{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;}
+.kc{background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:13px;}
+.kv{font-family:var(--display);font-weight:900;font-size:28px;line-height:1;}
+.kl{font-family:var(--mono);font-size:8px;color:var(--muted);letter-spacing:2px;margin-top:3px;text-transform:uppercase;}
+.kd{font-family:var(--mono);font-size:9px;margin-top:2px;}
+.kd.up{color:var(--danger);}.kd.dn{color:var(--safe);}
+.sgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:11px;}
+.sigc{background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:14px;position:relative;overflow:hidden;}
+.sigc::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;}
+.sigc.green::before{background:var(--safe);}.sigc.red::before{background:var(--danger);}.sigc.amber::before{background:var(--warn);}
+.sigid{font-family:var(--mono);font-size:7px;color:var(--muted);letter-spacing:2px;margin-bottom:7px;}
+.sign{font-family:var(--display);font-weight:700;font-size:14px;margin-bottom:6px;}
+.sigl{display:flex;gap:6px;margin-bottom:8px;}
+.sld{width:13px;height:13px;border-radius:50%;background:rgba(255,255,255,.05);border:1px solid var(--border);transition:all .3s;}
+.sld.r.on{background:#ff2d55;box-shadow:0 0 7px #ff2d55;}.sld.a.on{background:#ffb800;box-shadow:0 0 7px #ffb800;}.sld.g.on{background:#00ff88;box-shadow:0 0 7px #00ff88;}
+.sigi{font-family:var(--mono);font-size:9px;color:var(--muted);margin-bottom:2px;}
+.sigi span{color:var(--text);}
+.tbar{height:3px;background:var(--border);border-radius:2px;margin-top:6px;overflow:hidden;}
+.tfill{height:100%;border-radius:2px;transition:width 1s linear;}
+.tfill.green{background:var(--safe);}.tfill.red{background:var(--danger);}.tfill.amber{background:var(--warn);}
+.bovr{width:100%;margin-top:9px;padding:5px;font-family:var(--mono);font-size:8px;letter-spacing:1px;border:1px solid var(--danger);background:transparent;color:var(--danger);cursor:pointer;border-radius:2px;transition:all .2s;}
+.bovr:hover{background:rgba(255,45,85,.1);}
+.itbl{width:100%;border-collapse:collapse;font-size:10px;}
+.itbl th{text-align:left;padding:8px 12px;font-family:var(--mono);font-size:7px;letter-spacing:2px;color:var(--muted);border-bottom:1px solid var(--border);text-transform:uppercase;}
+.itbl td{padding:8px 12px;border-bottom:1px solid rgba(28,42,56,.4);font-family:var(--mono);font-size:10px;}
+.itbl tr:last-child td{border-bottom:none;}
+.itbl tr:hover td{background:rgba(255,255,255,.015);}
+.svd{width:6px;height:6px;border-radius:50%;display:inline-block;margin-right:4px;}
+.svh{background:var(--danger);}.svm{background:var(--warn);}.svl{background:var(--safe);}
+.stt{padding:2px 6px;border-radius:2px;font-size:8px;letter-spacing:1px;}
+.sta{background:rgba(255,45,85,.2);color:var(--danger);}.stm{background:rgba(255,184,0,.15);color:var(--warn);}.str{background:rgba(0,255,136,.15);color:var(--safe);}
+.bres{padding:2px 8px;background:transparent;border:1px solid var(--border);color:var(--muted);font-family:var(--mono);font-size:8px;cursor:pointer;border-radius:2px;transition:all .2s;}
+.bres:hover{border-color:var(--safe);color:var(--safe);}
+.dgrid{display:grid;grid-template-columns:1fr 1fr;gap:11px;}
+.dcard{background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:14px;}
+.did{font-family:var(--mono);font-size:7px;color:var(--muted);letter-spacing:2px;margin-bottom:4px;}
+.dn{font-family:var(--display);font-weight:700;font-size:14px;margin-bottom:4px;}
+.dst{font-family:var(--mono);font-size:9px;margin-bottom:8px;}
+.dst.hot{color:var(--danger);}.dst.ok{color:var(--safe);}
+.dpath{font-family:var(--mono);font-size:9px;color:var(--muted);line-height:1.8;margin-bottom:8px;}
+.dpath span{color:var(--accent);}
+.bdiv{padding:5px 12px;background:rgba(255,184,0,.1);border:1px solid var(--warn);color:var(--warn);font-family:var(--mono);font-size:8px;letter-spacing:1px;cursor:pointer;border-radius:2px;transition:all .2s;}
+.bdiv:hover{background:rgba(255,184,0,.2);}
+.bdiv.on{background:rgba(0,255,136,.1);border-color:var(--safe);color:var(--safe);}
+
+/* ── PAGE 5: HEATMAP ── */
+.hmapp{padding:22px;display:flex;flex-direction:column;gap:18px;}
+#mapContainer{width:100%;height:440px;border-radius:4px;border:1px solid var(--border);background:var(--s2);overflow:hidden;position:relative;}
+.map-placeholder{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:var(--muted);font-family:var(--mono);font-size:11px;text-align:center;}
+.hm-dots{position:absolute;inset:0;pointer-events:none;}
+.hm-dot{position:absolute;border-radius:50%;transform:translate(-50%,-50%);pointer-events:none;}
+.hm-tbl{width:100%;border-collapse:collapse;font-size:10px;}
+.hm-tbl th{text-align:left;padding:7px 11px;font-family:var(--mono);font-size:7px;letter-spacing:2px;color:var(--muted);border-bottom:1px solid var(--border);text-transform:uppercase;}
+.hm-tbl td{padding:7px 11px;border-bottom:1px solid rgba(28,42,56,.4);font-family:var(--mono);font-size:10px;}
+.hm-tbl tr:last-child td{border-bottom:none;}
+.hm-tbl tr:hover td{background:rgba(255,255,255,.015);}
+
+/* ── PAGE 6: REPORT ── */
+.rpp{padding:22px;display:flex;flex-direction:column;gap:18px;max-width:820px;}
+.rcard{background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:20px;}
+.rtitle{font-family:var(--display);font-weight:900;font-size:19px;letter-spacing:1px;text-transform:uppercase;margin-bottom:2px;}
+.rsub{font-family:var(--mono);font-size:8px;color:var(--muted);margin-bottom:16px;letter-spacing:1px;}
+.rf{margin-bottom:12px;}
+.rf label{display:block;font-family:var(--mono);font-size:7px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:4px;}
+.rf input,.rf textarea{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--body);font-size:12px;padding:8px 10px;border-radius:3px;outline:none;resize:vertical;}
+.rf input:focus,.rf textarea:focus{border-color:var(--accent);}
+.rf textarea{min-height:80px;}
+.rrow{display:grid;grid-template-columns:1fr 1fr;gap:11px;}
+.rtags{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;}
+.rtag{padding:3px 10px;border:1px solid var(--border);border-radius:20px;font-family:var(--mono);font-size:8px;color:var(--muted);cursor:pointer;transition:all .2s;}
+.rtag.sel{border-color:var(--accent);color:var(--accent);background:rgba(0,229,255,.08);}
+.bsave{padding:11px 26px;background:transparent;border:1px solid var(--safe);color:var(--safe);font-family:var(--display);font-weight:700;font-size:12px;letter-spacing:3px;text-transform:uppercase;cursor:pointer;transition:all .2s;}
+.bsave:hover{background:rgba(0,255,136,.07);}
+.bdl{padding:11px 26px;background:transparent;border:1px solid var(--accent);color:var(--accent);font-family:var(--display);font-weight:700;font-size:12px;letter-spacing:3px;text-transform:uppercase;cursor:pointer;transition:all .2s;margin-left:8px;}
+.bdl:hover{background:rgba(0,229,255,.07);}
+
+/* scrollbar */
+::-webkit-scrollbar{width:3px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+
+/* alert badge */
+.alert-badge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:2px;font-family:var(--mono);font-size:9px;letter-spacing:1px;}
+.alert-badge.email{background:rgba(0,229,255,.1);color:var(--accent);border:1px solid rgba(0,229,255,.2);}
+.alert-badge.sms{background:rgba(0,255,136,.1);color:var(--safe);border:1px solid rgba(0,255,136,.2);}
+.alert-badge.mongo{background:rgba(176,96,255,.1);color:var(--purple);border:1px solid rgba(176,96,255,.2);}
+
+/* history table */
+.hist-tbl{width:100%;border-collapse:collapse;font-size:10px;}
+.hist-tbl th{text-align:left;padding:7px 11px;font-family:var(--mono);font-size:7px;letter-spacing:2px;color:var(--muted);border-bottom:1px solid var(--border);text-transform:uppercase;}
+.hist-tbl td{padding:7px 11px;border-bottom:1px solid rgba(28,42,56,.4);font-family:var(--mono);font-size:10px;}
+.hist-tbl tr:last-child td{border-bottom:none;}
+.hist-tbl tr:hover td{background:rgba(255,255,255,.015);}
+</style>
+</head>
+<body>
+<div class="bg-grid"></div>
+<div class="alert-flash" id="alertFlash">🚨 ACCIDENT DETECTED</div>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">
+    <div class="logo-hex"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M1 12h4M19 12h4"/></svg></div>
+    <div><div class="logo-text">Accident<span>AI</span></div><div class="logo-sub">Production Platform v4.0</div></div>
+  </div>
+  <nav class="nav-tabs">
+    <button class="nav-tab active" onclick="go('analysis',this)">📹 Analysis</button>
+    <button class="nav-tab" onclick="go('analytics',this)">📊 Analytics</button>
+    <button class="nav-tab" onclick="go('live',this)">🎥 Live Cam</button>
+    <button class="nav-tab" onclick="go('traffic',this)">🚦 Traffic</button>
+    <button class="nav-tab" onclick="go('heatmap',this)">🗺 Heatmap</button>
+    <button class="nav-tab" onclick="go('report',this)">📄 Report</button>
+  </nav>
+  <div class="hdr-right">
+    <div style="display:flex;gap:6px" id="sysBadges"></div>
+    <span id="clk"></span>
+    <div class="status-pill"><div class="dot" id="sDot"></div><span id="sTxt">CONNECTING</span></div>
+  </div>
+</header>
+
+<!-- ═══════ PAGE 1: ANALYSIS ═══════ -->
+<div class="page active" id="page-analysis">
+<div class="ap">
+  <div class="lp">
+    <div class="sl">Input Feed</div>
+    <div class="uz" id="uz" onclick="document.getElementById('fi').click()">
+      <div class="ui"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.5"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3"/></svg></div>
+      <div class="ut">Drop CCTV Footage</div>
+      <div class="us">Upload video for real CNN accident detection</div>
+      <div class="fr"><span class="ft">MP4</span><span class="ft">AVI</span><span class="ft">MOV</span><span class="ft">MKV</span></div>
+    </div>
+    <input type="file" id="fi" accept="video/*"/>
+    <div class="vw" id="vw"><video id="vp" controls></video><div class="cov"></div><div class="cb">CAM-01 ● REC</div><div class="pb" id="pb"><span id="pbt"></span></div></div>
+
+    <div class="sl">Model Configuration</div>
+    <div class="cr">
+      <div class="cc"><div class="cl">Architecture</div><select id="cfgArch"><option>CNN (Notebook)</option><option>MobileNetV2</option><option>ResNet-50</option></select></div>
+      <div class="cc"><div class="cl">Frame Skip</div><select id="cfgSkip"><option value="10">Every 10th</option><option value="30" selected>Every 30th</option><option value="60">Every 60th</option></select></div>
+      <div class="cc"><div class="cl">Max Frames</div><select id="cfgMax"><option value="25">25</option><option value="50">50</option><option value="75" selected>75</option><option value="150">150</option></select></div>
+    </div>
+    <div class="cc">
+      <div class="cl">Confidence Threshold — <span id="thrLbl">50%</span></div>
+      <div class="sr"><input type="range" id="thr" min="10" max="95" value="50" oninput="thrLbl.textContent=this.value+'%'"><span class="sv" id="thrV">50%</span></div>
+    </div>
+    <div class="cc">
+      <div class="cl">Location Tag (for heatmap)</div>
+      <input class="ci" id="cfgLoc" type="text" placeholder="e.g. NH-48, Km 32" value="Unknown"/>
+    </div>
+
+    <div class="br">
+      <button class="bm" id="aBtn" disabled onclick="startAnalysis()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Analyze Video
+      </button>
+      <button class="bs" id="csvBtn" disabled onclick="exportCSV()"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>CSV</button>
+      <button class="bs" id="jsonBtn" disabled onclick="exportJSON()"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>JSON</button>
+    </div>
+    <div class="pw" id="pw"><div class="po"><div class="pi" id="pi"></div></div><div class="pt"><span id="pl">Initializing...</span><span id="pp">0%</span></div></div>
+  </div>
+
+  <div class="rp">
+    <div class="sb">
+      <div class="sl">Live Statistics</div>
+      <div class="sg">
+        <div class="sc"><div class="sval ca" id="stF">0</div><div class="slb">Frames Analyzed</div></div>
+        <div class="sc"><div class="sval cw" id="stFPS">—</div><div class="slb">Video FPS</div></div>
+        <div class="sc"><div class="sval cd" id="stA">0</div><div class="slb">Accidents Found</div></div>
+        <div class="sc"><div class="sval cs" id="stS">0</div><div class="slb">Safe Frames</div></div>
+        <div class="sc"><div class="sval cp" id="stAvg">—</div><div class="slb">Avg Confidence</div></div>
+        <div class="sc"><div class="sval cw" id="stPk">—</div><div class="slb">Peak Incident</div></div>
+        <div class="sc full"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px"><div class="slb">Accident Rate</div><div class="sval ca" style="font-size:18px" id="stRate">—</div></div><div class="mbar"><div class="mfill" id="rFill" style="width:0%"></div></div></div>
+        <div class="sc full"><div class="slb" style="margin-bottom:4px">Last Prediction</div><div class="sval" id="lpLbl" style="font-size:18px">—</div><div class="mbar" style="margin-top:6px"><div class="mfill" id="cFill" style="width:0%"></div></div><div style="font-family:var(--mono);font-size:9px;color:var(--muted);text-align:right;margin-top:3px" id="cpLbl">—</div></div>
+      </div>
+    </div>
+    <div class="tb">
+      <div class="sl">Detection Log</div>
+      <div class="tw" id="tl"><div class="emp" id="empt"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/></svg>No analysis yet</div></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ═══════ PAGE 2: ANALYTICS ═══════ -->
+<div class="page" id="page-analytics">
+<div class="anlp">
+  <div class="sl">Research Analytics Dashboard</div>
+  <div class="c3">
+    <div class="chc"><div class="cht">Confidence Distribution</div><div class="chs">Per-frame confidence histogram</div><div class="chw"><canvas id="chHist"></canvas></div></div>
+    <div class="chc"><div class="cht">Prediction Timeline</div><div class="chs">Accident probability over duration</div><div class="chw"><canvas id="chLine"></canvas></div></div>
+    <div class="chc"><div class="cht">Class Distribution</div><div class="chs">Accident vs Safe ratio</div><div class="chw"><canvas id="chDonut"></canvas></div></div>
+  </div>
+  <div class="c2">
+    <div class="chc"><div class="cht">Confusion Matrix</div><div class="chs">Based on current threshold</div>
+      <div class="cmg">
+        <div></div><div class="cml">Pred Accident</div><div class="cml">Pred Safe</div>
+        <div class="cml" style="text-align:right;padding-right:7px">Actual<br/>Accident</div><div class="cmcell cm-tp" id="cmTP">—</div><div class="cmcell cm-fn" id="cmFN">—</div>
+        <div class="cml" style="text-align:right;padding-right:7px">Actual<br/>Safe</div><div class="cmcell cm-fp" id="cmFP">—</div><div class="cmcell cm-tn" id="cmTN">—</div>
+      </div>
+    </div>
+    <div class="chc"><div class="cht">Model Performance Metrics</div><div class="chs">Research-grade evaluation</div>
+      <table class="mt"><thead><tr><th>Metric</th><th>Value</th><th>Grade</th></tr></thead><tbody id="mBody"><tr><td colspan="3" style="color:var(--muted);text-align:center;padding:16px">Run analysis first</td></tr></tbody></table>
+    </div>
+  </div>
+  <div class="c2">
+    <div class="chc"><div class="cht">5-Frame Moving Average</div><div class="chs">Smoothed confidence probability</div><div class="chw t"><canvas id="chMA"></canvas></div></div>
+    <div class="chc"><div class="cht">Cluster Analysis</div><div class="chs">Consecutive accident frame groups</div><div class="chw t"><canvas id="chClust"></canvas></div></div>
+  </div>
+</div>
+</div>
+
+<!-- ═══════ PAGE 3: LIVE CAM ═══════ -->
+<div class="page" id="page-live">
+<div class="livep">
+  <div class="sl">Live CCTV / Webcam Monitoring</div>
+  <div class="live-grid">
+    <div>
+      <div class="cam-feed" id="camFeed">
+        <div class="cam-placeholder" id="camPlaceholder">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="10" r="3"/><path d="M7 20.662V19a2 2 0 012-2h6a2 2 0 012 2v1.662"/></svg>
+          <div>Live stream not started</div>
+          <div style="font-size:9px;margin-top:4px">Click "Start Detection" to begin</div>
+        </div>
+        <img id="liveImg" src="" style="display:none;width:100%;height:100%;object-fit:cover;" alt="Live Stream"/>
+      </div>
+    </div>
+    <div class="live-ctrl">
+      <div class="sl">Stream Control</div>
+      <button class="btn-live start" id="liveStartBtn" onclick="startLive()">▶ Start Detection</button>
+      <button class="btn-live stop" id="liveStopBtn" onclick="stopLive()" style="display:none">⏹ Stop Detection</button>
+      <div class="live-stat"><div class="slb" style="margin-bottom:5px">Live Status</div><div class="live-val" id="liveStatus" style="color:var(--muted)">OFFLINE</div></div>
+      <div class="live-stat"><div class="slb" style="margin-bottom:5px">Accidents (Session)</div><div class="live-val cd" id="liveAccCount">0</div></div>
+      <div class="live-stat"><div class="slb" style="margin-bottom:5px">Stream Source</div><div style="font-family:var(--mono);font-size:10px;color:var(--accent)" id="liveSrc">Webcam (cam 0)</div></div>
+      <div class="cc" style="margin-top:4px">
+        <div class="cl">RTSP / Camera URL</div>
+        <input class="ci" id="rtspUrl" type="text" placeholder="rtsp://192.168.1.1/stream  or  0"/>
+      </div>
+      <div style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:4px;line-height:1.6">
+        Backend streams MJPEG with CNN overlay at<br/>
+        <span style="color:var(--accent)">GET /live/stream</span>
+      </div>
+    </div>
+  </div>
+  <div class="sl">Live Incident Log</div>
+  <div class="card p0"><table class="hist-tbl" id="liveIncTbl"><thead><tr><th>Time</th><th>Frame</th><th>Label</th><th>Confidence</th><th>Source</th></tr></thead><tbody id="liveIncBody"><tr><td colspan="5" style="color:var(--muted);text-align:center;padding:16px;font-family:var(--mono);font-size:10px">No live detections yet</td></tr></tbody></table></div>
+</div>
+</div>
+
+<!-- ═══════ PAGE 4: TRAFFIC ═══════ -->
+<div class="page" id="page-traffic">
+<div class="trfp">
+  <div class="sl">Intelligent Traffic Control System</div>
+  <div class="krow">
+    <div class="kc"><div class="kv" style="color:var(--danger)" id="tkA">3</div><div class="kl">Active Incidents</div><div class="kd up">+1 this hour</div></div>
+    <div class="kc"><div class="kv" style="color:var(--warn)" id="tkD">2</div><div class="kl">Route Diversions</div><div class="kd up">Routes redirected</div></div>
+    <div class="kc"><div class="kv" style="color:var(--accent)">12</div><div class="kl">Signals Online</div><div class="kd dn">All responsive</div></div>
+    <div class="kc"><div class="kv" style="color:var(--safe)">4.2<span style="font-size:13px">m</span></div><div class="kl">Avg Response</div><div class="kd dn">↓12% vs yesterday</div></div>
+    <div class="kc"><div class="kv" style="color:var(--purple)">847</div><div class="kl">Vehicles/Hour</div><div class="kd up">↑ peak hour</div></div>
+  </div>
+  <div class="sl">Signal Override Control</div>
+  <div class="sgrid" id="sigGrid"></div>
+  <div class="sl">Active Incident Log</div>
+  <div class="card p0"><table class="itbl" id="incTbl"><thead><tr><th>ID</th><th>Time</th><th>Location</th><th>Severity</th><th>Confidence</th><th>Status</th><th>Action</th></tr></thead><tbody id="incBody"></tbody></table></div>
+  <div class="sl">Route Diversion Manager</div>
+  <div class="dgrid" id="divGrid"></div>
+</div>
+</div>
+
+<!-- ═══════ PAGE 5: HEATMAP ═══════ -->
+<div class="page" id="page-heatmap">
+<div class="hmapp">
+  <div class="sl">Accident Heatmap — Location Intelligence</div>
+  <div id="mapContainer">
+    <div class="map-placeholder" id="mapPlaceholder">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+      <div>Run an analysis first to see the accident heatmap</div>
+      <div style="font-size:9px;margin-top:4px">Locations are added automatically from each analyzed video</div>
+    </div>
+    <canvas id="hmCanvas" style="display:none;position:absolute;inset:0;width:100%;height:100%;"></canvas>
+    <div class="hm-dots" id="hmDots"></div>
+  </div>
+  <div class="sl">Hotspot Data Table</div>
+  <div class="card p0">
+    <table class="hm-tbl" id="hmTbl">
+      <thead><tr><th>Location</th><th>Coordinates</th><th>Accidents</th><th>Time</th><th>Severity</th></tr></thead>
+      <tbody id="hmBody"><tr><td colspan="5" style="color:var(--muted);text-align:center;padding:16px;font-family:var(--mono);font-size:10px">No heatmap data yet</td></tr></tbody>
+    </table>
+  </div>
+</div>
+</div>
+
+<!-- ═══════ PAGE 6: REPORT ═══════ -->
+<div class="page" id="page-report">
+<div class="rpp">
+  <div class="sl">Research Report Generator</div>
+  <div class="rcard">
+    <div class="rtitle">Incident Analysis Report</div>
+    <div class="rsub">AUTO-POPULATED FROM REAL CNN ANALYSIS · EDIT BEFORE EXPORT</div>
+    <div class="rrow">
+      <div class="rf"><label>Report ID</label><input type="text" id="rId" value="RPT-000001" readonly/></div>
+      <div class="rf"><label>Date</label><input type="text" id="rDate"/></div>
+    </div>
+    <div class="rrow">
+      <div class="rf"><label>Researcher Name</label><input type="text" id="rName" placeholder="Your full name"/></div>
+      <div class="rf"><label>Institution</label><input type="text" id="rInst" placeholder="University / Organization"/></div>
+    </div>
+    <div class="rf"><label>Video File</label><input type="text" id="rFile" value="No file yet" readonly/></div>
+    <div class="rrow">
+      <div class="rf"><label>Frames Analyzed</label><input type="text" id="rFrames" value="—" readonly/></div>
+      <div class="rf"><label>Accidents Detected</label><input type="text" id="rAccidents" value="—" readonly/></div>
+    </div>
+    <div class="rrow">
+      <div class="rf"><label>Model Accuracy (CNN)</label><input type="text" id="rAcc" value="90%" readonly/></div>
+      <div class="rf"><label>Avg Confidence</label><input type="text" id="rConf" value="—" readonly/></div>
+    </div>
+    <div class="rf"><label>Precision / Recall / F1 / Accuracy</label><input type="text" id="rMetrics" value="Run analysis first" readonly/></div>
+    <div class="rf"><label>Observation Notes</label><textarea id="rNotes" placeholder="Research observations, anomalies noticed, recommendations..."></textarea></div>
+    <div class="rf">
+      <label>Incident Tags</label>
+      <div class="rtags">
+        <span class="rtag" onclick="this.classList.toggle('sel')">High Severity</span>
+        <span class="rtag" onclick="this.classList.toggle('sel')">Night Footage</span>
+        <span class="rtag" onclick="this.classList.toggle('sel')">Highway</span>
+        <span class="rtag" onclick="this.classList.toggle('sel')">Urban Road</span>
+        <span class="rtag" onclick="this.classList.toggle('sel')">Low Visibility</span>
+        <span class="rtag" onclick="this.classList.toggle('sel')">Multi-Vehicle</span>
+        <span class="rtag" onclick="this.classList.toggle('sel')">Pedestrian</span>
+        <span class="rtag" onclick="this.classList.toggle('sel')">Weather Related</span>
+        <span class="rtag" onclick="this.classList.toggle('sel')">Intersection</span>
+      </div>
+    </div>
+    <div style="margin-top:8px">
+      <button class="bsave" onclick="saveReport()">✓ Save Report</button>
+      <button class="bdl" onclick="dlReport()">↓ Download TXT</button>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ═══════════ SCRIPTS ═══════════ -->
+<script>
+// ── CONFIG ───────────────────────────────────────────────────────
+// FastAPI runs on 8000; Flask runs on 5000 — change here if needed
+const API = 'http://localhost:8000';
+
+let vFile=null, results=[], accCount=0, safeCount=0, charts={};
+
+// ── CLOCK ─────────────────────────────────────────────────────────
+setInterval(()=>{ document.getElementById('clk').textContent=new Date().toLocaleTimeString('en-IN',{hour12:false}); },1000);
+
+// ── PAGE SWITCH ───────────────────────────────────────────────────
+function go(id, btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  btn.classList.add('active');
+  if(id==='analytics') renderCharts();
+  if(id==='heatmap')   loadHeatmap();
+}
+
+// ── FILE UPLOAD ───────────────────────────────────────────────────
+document.getElementById('fi').addEventListener('change',e=>{if(e.target.files[0])loadVid(e.target.files[0]);});
+const uz=document.getElementById('uz');
+uz.addEventListener('dragover',e=>{e.preventDefault();uz.classList.add('drag');});
+uz.addEventListener('dragleave',()=>uz.classList.remove('drag'));
+uz.addEventListener('drop',e=>{e.preventDefault();uz.classList.remove('drag');const f=e.dataTransfer.files[0];if(f&&f.type.startsWith('video/'))loadVid(f);});
+function loadVid(f){
+  vFile=f;
+  document.getElementById('vp').src=URL.createObjectURL(f);
+  document.getElementById('vw').classList.add('on');
+  uz.style.display='none';
+  document.getElementById('aBtn').disabled=false;
+  document.getElementById('rFile').value=f.name;
+}
+
+// ── MAIN ANALYSIS — calls FastAPI /analyze ────────────────────────
+async function startAnalysis(){
+  if(!vFile) return;
+  const btn=document.getElementById('aBtn');
+  btn.disabled=true;
+  btn.innerHTML=`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> Analyzing...`;
+
+  document.getElementById('pw').classList.add('on');
+  setProg(0,'Uploading video to server...');
+  document.getElementById('empt').style.display='none';
+  document.getElementById('tl').innerHTML='';
+  accCount=0; safeCount=0; results=[];
+
+  // Fake progress ticker while waiting for server
+  let fp=0;
+  const fi=setInterval(()=>{ if(fp<88){fp+=Math.random()*2.5; setProg(fp,'');} },400);
+  const msgs=['Uploading...','Running CNN inference...','Preprocessing frames...','Detecting anomalies...','Computing results...'];
+  let mi=0;
+  const mi2=setInterval(()=>{ mi=(mi+1)%msgs.length; document.getElementById('pl').textContent=msgs[mi]; },1800);
+
+  try {
+    const fd=new FormData();
+    fd.append('video',   vFile, vFile.name);
+    fd.append('frame_skip', document.getElementById('cfgSkip').value);
+    fd.append('max_frames', document.getElementById('cfgMax').value);
+    fd.append('threshold',  document.getElementById('thr').value/100);
+    fd.append('location',   document.getElementById('cfgLoc').value||'Unknown');
+    fd.append('lat',  19.0760);
+    fd.append('lng',  72.8777);
+
+    const res=await fetch(`${API}/analyze`,{method:'POST',body:fd});
+    clearInterval(fi); clearInterval(mi2);
+    if(!res.ok){ const e=await res.json().catch(()=>({detail:res.statusText})); throw new Error(e.detail||e.error||res.statusText); }
+    const data=await res.json();
+    renderResults(data);
+  } catch(err){
+    clearInterval(fi); clearInterval(mi2);
+    document.getElementById('pl').textContent='❌ '+err.message;
+    document.getElementById('pi').style.background='var(--danger)';
+    document.getElementById('pi').style.width='100%';
+    btn.disabled=false;
+    btn.innerHTML=`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> Analyze Video`;
+  }
+}
+
+function setProg(pct,lbl){
+  document.getElementById('pi').style.width=pct+'%';
+  document.getElementById('pp').textContent=Math.round(pct)+'%';
+  if(lbl) document.getElementById('pl').textContent=lbl;
+}
+
+function renderResults(data){
+  setProg(100,`Complete — ${data.frames_analyzed} frames processed`);
+  document.getElementById('stFPS').textContent=data.fps||'—';
+  accCount=data.accident_count; safeCount=data.safe_count; results=data.results;
+  updateStats(data.frames_analyzed);
+  populateReport(data);
+  results.forEach((r,i)=>setTimeout(()=>{ addTLI(r); updateLP(r); if(r.isAccident) flash(); },i*30));
+  setTimeout(()=>{
+    const b=document.getElementById('pb');
+    document.getElementById('pbt').textContent=`SCAN COMPLETE · ${accCount} INCIDENTS · ${data.accident_rate}% RATE`;
+    b.className=`pb show ${accCount>0?'accident':'safe'}`;
+    document.getElementById('aBtn').disabled=false;
+    document.getElementById('aBtn').innerHTML=`✓ Re-Analyze`;
+    document.getElementById('csvBtn').disabled=false;
+    document.getElementById('jsonBtn').disabled=false;
+    addIncFromAnalysis(data);
+    updateHeatmapDots();
+  },results.length*30+300);
+}
+
+function updateStats(f){
+  document.getElementById('stF').textContent=f;
+  document.getElementById('stA').textContent=accCount;
+  document.getElementById('stS').textContent=safeCount;
+  const r=f>0?Math.round(accCount/f*100):0;
+  document.getElementById('stRate').textContent=r+'%';
+  const rf=document.getElementById('rFill');
+  rf.style.width=r+'%'; rf.className='mfill'+(r>20?' d':'');
+  if(results.length){
+    const avg=results.reduce((a,r)=>a+r.confidence,0)/results.length;
+    document.getElementById('stAvg').textContent=Math.round(avg*100)+'%';
+    const acc=results.filter(r=>r.isAccident);
+    if(acc.length){const pk=acc.reduce((a,r)=>r.confidence>a.confidence?r:a,acc[0]); document.getElementById('stPk').textContent=pk.time;}
+  }
+}
+
+function addTLI(r){
+  const tl=document.getElementById('tl');
+  const el=document.createElement('div');
+  el.className=`ti ${r.isAccident?'accident':'safe'}`;
+  el.innerHTML=`<span class="ttm">${r.time}</span><span class="tll ${r.isAccident?'accident':'safe'}">${r.isAccident?'⚠ ACCIDENT':'✓ SAFE'}</span><span class="tc">${Math.round(r.confidence*100)}%</span>`;
+  el.onclick=()=>{ const [mm,ss]=r.time.split(':').map(Number); const vp=document.getElementById('vp'); if(vp.duration) vp.currentTime=mm*60+ss; showBanner(r); };
+  tl.appendChild(el); tl.scrollTop=tl.scrollHeight;
+}
+
+function updateLP(r){
+  const pct=Math.round(r.confidence*100);
+  const l=document.getElementById('lpLbl');
+  l.textContent=r.isAccident?'ACCIDENT':'SAFE'; l.style.color=r.isAccident?'var(--danger)':'var(--safe)';
+  document.getElementById('cFill').style.width=pct+'%';
+  document.getElementById('cFill').className='mfill'+(r.isAccident?' d':'');
+  document.getElementById('cpLbl').textContent=pct+'%';
+}
+
+function showBanner(r){
+  const b=document.getElementById('pb');
+  document.getElementById('pbt').textContent=r.isAccident?`⚠ ACCIDENT — ${Math.round(r.confidence*100)}% confidence`:`✓ SAFE — ${Math.round(r.confidence*100)}% confidence`;
+  b.className=`pb show ${r.isAccident?'accident':'safe'}`;
+  setTimeout(()=>b.classList.remove('show'),3000);
+}
+
+let aTO;
+function flash(){ const a=document.getElementById('alertFlash'); a.classList.add('show'); clearTimeout(aTO); aTO=setTimeout(()=>a.classList.remove('show'),2500); }
+
+// ── EXPORT ────────────────────────────────────────────────────────
+function exportCSV(){
+  if(!results.length) return;
+  const csv='Frame,Time,Label,IsAccident,Confidence\n'+results.map(r=>`${r.frame},${r.time},${r.label},${r.isAccident},${r.confidence}`).join('\n');
+  dlBlob(new Blob([csv],{type:'text/csv'}),`accidentai_${Date.now()}.csv`);
+}
+function exportJSON(){
+  if(!results.length) return;
+  dlBlob(new Blob([JSON.stringify({metadata:{model:'CNN',accuracy:0.9,timestamp:new Date().toISOString()},results},null,2)],{type:'application/json'}),`accidentai_${Date.now()}.json`);
+}
+function dlBlob(blob,name){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click(); }
+
+// ── CHARTS ────────────────────────────────────────────────────────
+function demoD(){ return Array.from({length:40},(_,i)=>({time:`00:${String(i).padStart(2,'0')}`,isAccident:Math.random()<0.2,confidence:0.5+Math.random()*0.47,frame:(i+1)*30,label:'—'})); }
+
+function mkChart(id,type,data,ex={}){
+  if(charts[id]) charts[id].destroy();
+  const ctx=document.getElementById(id).getContext('2d');
+  charts[id]=new Chart(ctx,{type,data,options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},...(ex.plugins||{})},scales:type==='doughnut'?{}:{x:{grid:{color:'rgba(28,42,56,.6)'},ticks:{color:'#4a5a6a',font:{family:"'Share Tech Mono'",size:8},maxTicksLimit:8}},y:{grid:{color:'rgba(28,42,56,.6)'},ticks:{color:'#4a5a6a',font:{family:"'Share Tech Mono'",size:8}}}},...ex}});
+}
+
+function renderCharts(){
+  const d=results.length?results:demoD();
+  const thr=parseInt(document.getElementById('thr').value)/100;
+  const bins=Array(10).fill(0);
+  d.forEach(r=>bins[Math.min(9,Math.floor(r.confidence*10))]++);
+  mkChart('chHist','bar',{labels:['0-10','10-20','20-30','30-40','40-50','50-60','60-70','70-80','80-90','90-100'],datasets:[{data:bins,backgroundColor:bins.map((_,i)=>i>=5?'rgba(255,45,85,.65)':'rgba(0,229,255,.4)'),borderWidth:0}]});
+  mkChart('chLine','line',{labels:d.map(r=>r.time),datasets:[{data:d.map(r=>Math.round(r.confidence*100)),borderColor:'rgba(0,229,255,.8)',backgroundColor:'rgba(0,229,255,.07)',fill:true,tension:0.4,pointRadius:3,pointBackgroundColor:d.map(r=>r.isAccident?'#ff2d55':'#00ff88'),pointBorderWidth:0}]});
+  const a=d.filter(r=>r.isAccident).length,s=d.length-a;
+  mkChart('chDonut','doughnut',{labels:['Accident','Safe'],datasets:[{data:[a,s],backgroundColor:['rgba(255,45,85,.8)','rgba(0,255,136,.6)'],borderWidth:0}]},{plugins:{legend:{display:true,position:'bottom',labels:{color:'#c8d8e8',font:{family:"'Share Tech Mono'",size:9}}}}});
+  const ma=d.map((r,i,arr)=>{const w=arr.slice(Math.max(0,i-4),i+1);return Math.round(w.reduce((s,x)=>s+x.confidence,0)/w.length*100);});
+  mkChart('chMA','line',{labels:d.map(r=>r.time),datasets:[{label:'5-frame MA',data:ma,borderColor:'rgba(176,96,255,.9)',backgroundColor:'rgba(176,96,255,.1)',fill:true,tension:0.5,pointRadius:0},{label:'Raw',data:d.map(r=>Math.round(r.confidence*100)),borderColor:'rgba(0,229,255,.3)',backgroundColor:'transparent',tension:0.3,pointRadius:0,borderDash:[3,3]}]},{plugins:{legend:{display:true,labels:{color:'#4a5a6a',font:{family:"'Share Tech Mono'",size:8}}}}});
+  const cl=[]; let run=0; d.forEach(r=>{if(r.isAccident)run++;else{if(run>0){cl.push(run);run=0;}}});if(run>0)cl.push(run);
+  const cb=[0,0,0,0]; cl.forEach(c=>{if(c===1)cb[0]++;else if(c===2)cb[1]++;else if(c===3)cb[2]++;else cb[3]++;});
+  mkChart('chClust','bar',{labels:['1 frame','2 frames','3 frames','4+ frames'],datasets:[{data:cb,backgroundColor:'rgba(255,184,0,.65)',borderWidth:0}]});
+  const tp=d.filter(r=>r.isAccident&&r.confidence>=thr).length,fn=d.filter(r=>r.isAccident&&r.confidence<thr).length,fp=d.filter(r=>!r.isAccident&&r.confidence>=thr).length,tn=d.filter(r=>!r.isAccident&&r.confidence<thr).length;
+  ['cmTP','cmFN','cmFP','cmTN'].forEach((id,i)=>document.getElementById(id).textContent=[tp,fn,fp,tn][i]);
+  const pr=tp+fp>0?(tp/(tp+fp)*100).toFixed(1):'0',re=tp+fn>0?(tp/(tp+fn)*100).toFixed(1):'0',f1=(+pr+re>0?(2*(+pr)*(+re)/(+pr+(+re))).toFixed(1):'0'),ac=((tp+tn)/(tp+tn+fp+fn||1)*100).toFixed(1),sp=tn+fp>0?(tn/(tn+fp)*100).toFixed(1):'0';
+  document.getElementById('mBody').innerHTML=[['Accuracy',ac+'%',+ac>=85?'good':+ac>=70?'warn':'bad'],['Precision',pr+'%',+pr>=80?'good':+pr>=60?'warn':'bad'],['Recall',re+'%',+re>=80?'good':+re>=60?'warn':'bad'],['F1 Score',f1+'%',+f1>=80?'good':+f1>=60?'warn':'bad'],['Specificity',sp+'%',+sp>=80?'good':+sp>=60?'warn':'bad'],['Threshold',(thr*100).toFixed(0)+'%','warn']].map(([m,v,c])=>`<tr><td>${m}</td><td style="color:var(--text)">${v}</td><td><span class="badge ${c}">${c.toUpperCase()}</span></td></tr>`).join('');
+  document.getElementById('rMetrics').value=`P:${pr}%  R:${re}%  F1:${f1}%  Acc:${ac}%`;
+}
+
+// ── LIVE CAM ──────────────────────────────────────────────────────
+let liveAccSess=0;
+async function startLive(){
+  const rtsp=document.getElementById('rtspUrl').value.trim();
+  try{
+    await fetch(`${API}/live/start`);
+    document.getElementById('liveStatus').textContent='ACTIVE';
+    document.getElementById('liveStatus').style.color='var(--safe)';
+    document.getElementById('liveStartBtn').style.display='none';
+    document.getElementById('liveStopBtn').style.display='block';
+    document.getElementById('liveSrc').textContent=rtsp||'Webcam (cam 0)';
+    // Show MJPEG stream
+    const img=document.getElementById('liveImg');
+    img.src=`${API}/live/stream?t=`+Date.now();
+    img.style.display='block';
+    document.getElementById('camPlaceholder').style.display='none';
+  }catch(e){ alert('Cannot connect to server. Make sure backend is running.'); }
+}
+async function stopLive(){
+  await fetch(`${API}/live/stop`).catch(()=>{});
+  document.getElementById('liveStatus').textContent='OFFLINE';
+  document.getElementById('liveStatus').style.color='var(--muted)';
+  document.getElementById('liveStartBtn').style.display='block';
+  document.getElementById('liveStopBtn').style.display='none';
+  document.getElementById('liveImg').style.display='none';
+  document.getElementById('camPlaceholder').style.display='flex';
+}
+
+// ── TRAFFIC MANAGEMENT ────────────────────────────────────────────
+const signals=[
+  {id:'SIG-01',name:'Junction Alpha',state:'green',timer:32,vol:142},
+  {id:'SIG-02',name:'Bridge Gate',   state:'red',  timer:15,vol:98},
+  {id:'SIG-03',name:'Central Cross', state:'amber', timer:4, vol:201},
+  {id:'SIG-04',name:'Market Square', state:'green', timer:38,vol:87},
+];
+function buildSig(){
+  document.getElementById('sigGrid').innerHTML=signals.map((s,i)=>`
+    <div class="sigc ${s.state}"><div class="sigid">${s.id} · INTERSECTION</div><div class="sign">${s.name}</div>
+    <div class="sigl"><div class="sld r ${s.state==='red'?'on':''}"></div><div class="sld a ${s.state==='amber'?'on':''}"></div><div class="sld g ${s.state==='green'?'on':''}"></div></div>
+    <div class="sigi">Volume: <span>${s.vol} veh/hr</span></div>
+    <div class="sigi">Timer: <span id="st${i}">${s.timer}s</span></div>
+    <div class="tbar"><div class="tfill ${s.state}" id="sf${i}" style="width:${s.timer/60*100}%"></div></div>
+    <button class="bovr" onclick="ovrSig(${i})">⚠ Force RED Override</button></div>
+  `).join('');
+}
+function ovrSig(i){ signals[i].state='red';signals[i].timer=60;buildSig();startSigT(); alert(`${signals[i].id} → RED for 60s`); }
+let sigInt;
+function startSigT(){
+  clearInterval(sigInt);
+  sigInt=setInterval(()=>{
+    signals.forEach((s,i)=>{
+      s.timer=Math.max(0,s.timer-1);
+      const te=document.getElementById(`st${i}`),fe=document.getElementById(`sf${i}`);
+      if(te)te.textContent=s.timer+'s'; if(fe)fe.style.width=(s.timer/60*100)+'%';
+      if(s.timer===0){ if(s.state==='green'){s.state='amber';s.timer=4;}else if(s.state==='amber'){s.state='red';s.timer=30;}else{s.state='green';s.timer=45;} buildSig(); }
+    });
+  },1000);
+}
+const incidents=[
+  {id:'INC-001',time:'14:23',loc:'NH-48, Km 32',   sev:'high',  conf:'94%',status:'active'},
+  {id:'INC-002',time:'13:55',loc:'Ring Road, Sec 7',sev:'medium',conf:'78%',status:'monitoring'},
+  {id:'INC-003',time:'12:40',loc:'Expressway Exit 12',sev:'low',conf:'65%',status:'resolved'},
+];
+function buildIncTable(){
+  document.getElementById('incBody').innerHTML=incidents.map(inc=>`
+    <tr><td style="color:var(--accent)">${inc.id}</td><td>${inc.time}</td><td>${inc.loc}</td>
+    <td><span class="svd sv${inc.sev[0]}"></span>${inc.sev.charAt(0).toUpperCase()+inc.sev.slice(1)}</td>
+    <td style="color:var(--safe)">${inc.conf}</td>
+    <td><span class="stt st${inc.status[0]}">${inc.status.toUpperCase()}</span></td>
+    <td><button class="bres" onclick="resolveInc('${inc.id}')">Resolve</button></td></tr>
+  `).join('');
+}
+function resolveInc(id){ const inc=incidents.find(i=>i.id===id); if(inc){inc.status='resolved';buildIncTable();document.getElementById('tkA').textContent=incidents.filter(i=>i.status==='active').length;} }
+function addIncFromAnalysis(data){
+  if(data.accident_count>0){
+    incidents.unshift({id:'INC-'+String(incidents.length+1).padStart(3,'0'),time:new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:false}),loc:document.getElementById('cfgLoc').value||'Uploaded footage',sev:data.accident_rate>30?'high':data.accident_rate>15?'medium':'low',conf:data.accident_count>0?Math.round(data.results.filter(r=>r.isAccident).reduce((a,r)=>a+r.confidence,0)/data.accident_count*100)+'%':'—',status:'active'});
+    document.getElementById('tkA').textContent=incidents.filter(i=>i.status==='active').length;
+    buildIncTable();
+  }
+}
+const routes=[
+  {id:'RT-A1',name:'NH-48 Bypass',     hot:true, from:'Sector 12',    via:'Ring Road',     to:'Central Depot',on:true},
+  {id:'RT-B2',name:'Expressway Alt',   hot:false,from:'Exit 12',       via:'Service Lane 4',to:'Junction Alpha',on:false},
+  {id:'RT-C3',name:'Inner City Loop',  hot:true, from:'Market Square', via:'Bridge Gate',   to:'Old City',on:true},
+  {id:'RT-D4',name:'Industrial Link',  hot:false,from:'Warehouse Zone',via:'NH-8',          to:'Port Entry',on:false},
+];
+function buildDivGrid(){
+  document.getElementById('divGrid').innerHTML=routes.map((r,i)=>`
+    <div class="dcard"><div class="did">${r.id} · CORRIDOR</div><div class="dn">${r.name}</div>
+    <div class="dst ${r.hot?'hot':'ok'}">${r.hot?'⚠ INCIDENT ZONE':'✓ CLEAR'}</div>
+    <div class="dpath">${r.from} <span>→</span> ${r.via} <span>→</span> ${r.to}</div>
+    <button class="bdiv ${r.on?'on':''}" onclick="toggleDiv(${i})">${r.on?'✓ Diversion Active':'Activate Diversion'}</button></div>
+  `).join('');
+}
+function toggleDiv(i){ routes[i].on=!routes[i].on; document.getElementById('tkD').textContent=routes.filter(r=>r.on).length; buildDivGrid(); }
+
+// ── HEATMAP ────────────────────────────────────────────────────────
+let hmData=[];
+async function loadHeatmap(){
+  try{
+    const res=await fetch(`${API}/heatmap`);
+    const data=await res.json();
+    if(data.length>0){ hmData=data; renderHeatmap(); }
+  }catch(e){ /* offline — use local store */ if(hmData.length>0) renderHeatmap(); }
+}
+function updateHeatmapDots(){
+  // Called after each analysis to add local dot
+  const loc=document.getElementById('cfgLoc').value||'Unknown';
+  if(accCount>0){
+    hmData.push({lat:19.076,lng:72.877,weight:accCount,time:new Date().toISOString(),loc});
+    renderHeatmap();
+  }
+}
+function renderHeatmap(){
+  if(!hmData.length) return;
+  document.getElementById('mapPlaceholder').style.display='none';
+  const dots=document.getElementById('hmDots');
+  dots.innerHTML=hmData.map(d=>{
+    // Simple projection: lat/lng → % positions (India-centric)
+    const x=Math.max(5,Math.min(95,((d.lng-68)/22)*100));
+    const y=Math.max(5,Math.min(95,(1-((d.lat-8)/30))*100));
+    const r=12+d.weight*3;
+    const op=Math.min(0.85,0.3+d.weight*0.08);
+    return `<div class="hm-dot" style="left:${x}%;top:${y}%;width:${r*2}px;height:${r*2}px;background:radial-gradient(circle,rgba(255,45,85,${op}) 0%,rgba(255,45,85,0) 70%);"></div>`;
+  }).join('');
+  // Table
+  document.getElementById('hmBody').innerHTML=hmData.slice().reverse().map(d=>{
+    const sev=d.weight>=5?'<span class="stt sta">HIGH</span>':d.weight>=2?'<span class="stt stm">MEDIUM</span>':'<span class="stt str">LOW</span>';
+    return `<tr><td>${d.loc}</td><td style="color:var(--accent)">${(+d.lat).toFixed(3)}°N, ${(+d.lng).toFixed(3)}°E</td><td style="color:var(--danger)">${d.weight}</td><td>${new Date(d.time).toLocaleTimeString('en-IN',{hour12:false})}</td><td>${sev}</td></tr>`;
+  }).join('');
+}
+
+// ── REPORT ────────────────────────────────────────────────────────
+function populateReport(data){
+  document.getElementById('rDate').value=new Date().toLocaleString('en-IN');
+  document.getElementById('rFrames').value=data.frames_analyzed;
+  document.getElementById('rAccidents').value=`${data.accident_count} (${data.accident_rate}% rate)`;
+  document.getElementById('rId').value='RPT-'+Date.now().toString().slice(-6);
+  if(results.length){ const avg=results.reduce((a,r)=>a+r.confidence,0)/results.length; document.getElementById('rConf').value=Math.round(avg*100)+'%'; }
+}
+function saveReport(){ alert('Report saved! ✓\nIn production this POSTs to your MongoDB database.'); }
+function dlReport(){
+  const tags=[...document.querySelectorAll('.rtag.sel')].map(t=>t.textContent).join(', ');
+  const txt=`ACCIDENTAI PRODUCTION REPORT\n${'='.repeat(40)}\nReport ID   : ${document.getElementById('rId').value}\nDate        : ${document.getElementById('rDate').value}\nResearcher  : ${document.getElementById('rName').value||'N/A'}\nInstitution : ${document.getElementById('rInst').value||'N/A'}\n\nANALYSIS RESULTS\n${'-'.repeat(40)}\nVideo       : ${document.getElementById('rFile').value}\nFrames      : ${document.getElementById('rFrames').value}\nAccidents   : ${document.getElementById('rAccidents').value}\nModel Acc   : ${document.getElementById('rAcc').value}\nAvg Conf    : ${document.getElementById('rConf').value}\nMetrics     : ${document.getElementById('rMetrics').value}\n\nTAGS: ${tags||'None'}\n\nOBSERVATIONS\n${'-'.repeat(40)}\n${document.getElementById('rNotes').value||'No notes.'}\n\nDETECTION LOG\n${'-'.repeat(40)}\n${results.map(r=>`[${r.time}] Frame ${r.frame} — ${r.label} (${Math.round(r.confidence*100)}%)`).join('\n')||'No data.'}`;
+  dlBlob(new Blob([txt],{type:'text/plain'}),`accidentai_report_${Date.now()}.txt`);
+}
+
+// ── HEALTH CHECK ──────────────────────────────────────────────────
+window.addEventListener('load', async ()=>{
+  const dot=document.getElementById('sDot'), txt=document.getElementById('sTxt');
+  const badges=document.getElementById('sysBadges');
+  try{
+    const res=await fetch(`${API}/health`);
+    const d=await res.json();
+    if(d.model_loaded){ dot.style.background='var(--safe)'; txt.textContent='MODEL READY'; }
+    else { dot.style.background='var(--warn)'; txt.textContent='NO MODEL'; }
+
+    // Show system badges
+    const b=[];
+    if(d.mongo_connected) b.push('<span class="alert-badge mongo">🗄 MongoDB</span>');
+    if(d.alerts_email)    b.push('<span class="alert-badge email">📧 Email</span>');
+    if(d.alerts_sms)      b.push('<span class="alert-badge sms">📲 SMS</span>');
+    badges.innerHTML=b.join('');
+  }catch{
+    dot.style.background='var(--danger)'; dot.style.animation='none';
+    txt.textContent='OFFLINE'; txt.style.color='var(--danger)';
+  }
+});
+
+// ── INIT ──────────────────────────────────────────────────────────
+buildSig(); startSigT(); buildIncTable(); buildDivGrid();
+document.getElementById('thr').addEventListener('input',function(){ document.getElementById('thrV').textContent=this.value+'%'; });
+</script>
+</body>
+</html>

@@ -1,0 +1,25 @@
+# AccidentAI — Production Dependencies
+# Install: pip install -r requirements.txt
+
+# ── Core framework ────────────────────────────────────────────────
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+python-multipart>=0.0.9        # required for FastAPI file uploads
+
+# ── AI / CV ───────────────────────────────────────────────────────
+tensorflow>=2.12.0
+opencv-python>=4.8.0
+numpy>=1.23.0
+
+# ── Database (optional) ───────────────────────────────────────────
+pymongo>=4.6.0                 # comment out if not using MongoDB
+
+# ── Alerts (optional) ─────────────────────────────────────────────
+twilio>=8.0.0                  # comment out if not using SMS alerts
+# firebase-admin>=6.0.0        # uncomment for push notifications
+
+# ── Utilities ─────────────────────────────────────────────────────
+pydantic>=2.0.0
+aiofiles>=23.0.0
+python-dotenv>=1.0.0
+

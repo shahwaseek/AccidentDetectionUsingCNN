@@ -1,0 +1,32 @@
+# Git
+.git
+.gitignore
+
+# Virtual environment
+.venv
+venv
+ENV
+env
+
+# IDEs
+.idea
+.vscode
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+
+# Python cache / logs
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+*.log
+
+# Sensitive credentials
+.env
+
+# Sub-repositories or alternate folder versions
+-AccidentAI-Production-Platform
+AccidentDetectionUsingCNN

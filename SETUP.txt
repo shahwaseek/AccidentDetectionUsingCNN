@@ -1,0 +1,113 @@
+╔══════════════════════════════════════════════════════════════════╗
+║   gi — Complete Setup Guide          ║
+╚══════════════════════════════════════════════════════════════════╝
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ STEP 1 — Save your trained CNN model from the notebook
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Add this cell AFTER training in your .ipynb:
+
+    m.save("model.h5")
+
+Download from Colab:
+
+    from google.colab import files
+    files.download("model.h5")
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ STEP 2 — Project folder structure
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    accident_ai/
+    ├── main.py             ← FastAPI backend (provided)
+    ├── requirements.txt    ← Python deps (provided)
+    ├── model.h5            ← Your CNN model (from notebook)
+    └── static/
+        └── index.html      ← Frontend UI (provided)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ STEP 3 — Install dependencies
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    cd accident_ai
+    pip install -r requirements.txt
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ STEP 4 — Start the server
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    python main.py
+   OR:
+    uvicorn main:app --reload --host 0.0.0.0 --port 8000
+
+You'll see:
+    ✅  Model loaded OK
+    🚀  AccidentAI Production Server at http://localhost:8000
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ STEP 5 — Open the platform
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    Browser → http://localhost:8000
+cd
+    Auto API docs → http://localhost:8000/docs
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ ENABLE OPTIONAL FEATURES (edit main.py top section)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ 📧 EMAIL ALERTS:
+    EMAIL_ENABLED  = True
+    EMAIL_FROM     = "your@gmail.com"
+    EMAIL_PASSWORD = "your-gmail-app-password"
+    EMAIL_TO       = "receiver@gmail.com"
+
+ 📲 SMS ALERTS (Twilio):
+    SMS_ENABLED    = True
+    TWILIO_SID     = "your_account_sid"
+    TWILIO_TOKEN   = "your_auth_token"
+    TWILIO_FROM    = "+1234567890"
+    TWILIO_TO      = "+91XXXXXXXXXX"
+
+ 🗄 MONGODB:
+    pip install pymongo
+    Make sure MongoDB is running: mongod
+    MONGO_URI      = "mongodb://localhost:27017/"
+
+ 🎥 LIVE CCTV (RTSP):
+    CAMERA_SOURCE  = "rtsp://192.168.1.1/stream"
+    (or 0 for webcam)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ API ENDPOINTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ GET  /health           → model status, alerts, mongo status
+ POST /analyze          → main CNN inference endpoint
+ GET  /incidents        → last 100 saved incidents
+ GET  /heatmap          → accident location data
+ GET  /live/start       → start webcam/RTSP detection thread
+ GET  /live/stop        → stop live detection
+ GET  /live/stream      → MJPEG stream with CNN overlay
+ GET  /docs             → auto-generated Swagger UI
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ COMPLETE DATA FLOW
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ 1. User uploads CCTV video in browser
+ 2. FormData POSTed to FastAPI /analyze
+ 3. Backend saves to temp file
+ 4. cv2.VideoCapture reads frames
+ 5. Every 30th frame:
+      BGR→RGB → smart_resize(48,48) → grayscale
+      → expand_dims×2 → /255
+      → model.predict() → (pred>0.5)[0][0]==1 → Accident
+ 6. Results JSON returned to frontend
+ 7. Frontend animates timeline, updates charts, stats
+ 8. Background: save to MongoDB + send email/SMS alerts
+ 9. Heatmap updated with accident location
+10. Report auto-populated with real metrics
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ TROUBLESHOOTING
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ ● Status OFFLINE   → Run python main.py first
+ ● Status NO MODEL  → model.h5 missing; check MODEL_PATH
+ ● CORS error       → fastapi + CORSMiddleware already handles it
+ ● Slow analysis    → Increase Frame Skip to 60 or reduce Max Frames
+ ● Email not sent   → Use Gmail App Password (not login password)
