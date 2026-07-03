@@ -127,7 +127,7 @@ log.info(f"  Loading CNN model from: {MODEL_PATH}")
 log.info("=" * 55)
 cnn_model = None
 try:
-    cnn_model = tf.keras.models.load_model(MODEL_PATH)
+    cnn_model = tf.keras.models.load_model(MODEL_PATH, compile=False)
     cnn_model.summary()
     log.info("✅  Model loaded OK")
 except Exception as e:
@@ -161,14 +161,15 @@ def preprocess_frame(bgr_frame: np.ndarray) -> np.ndarray:
       → expand_dims × 2 → /255
     Returns shape (1, 48, 48, 1)
     """
-    rgb     = cv2.cvtColor(bgr_frame, cv2.COLOR_BGR2RGB)
+    rgb = cv2.cvtColor(bgr_frame, cv2.COLOR_BGR2RGB)
     resized = tf.keras.preprocessing.image.smart_resize(
         rgb, (IMG_HEIGHT, IMG_WIDTH), interpolation="bilinear"
     )
-    gray    = cv2.cvtColor(np.array(resized), cv2.COLOR_RGB2GRAY)
-    batch   = np.expand_dims(gray,  axis=0)   # (1, 48, 48)
-    batch   = np.expand_dims(batch, axis=-1)  # (1, 48, 48, 1)
-    return batch / 255.0
+    # Convert using TensorFlow to avoid OpenCV float32 depth crash
+    gray = tf.image.rgb_to_grayscale(resized)
+    batch = tf.expand_dims(gray, axis=0)
+    normalized = tf.cast(batch, tf.float32) / 255.0
+    return normalized.numpy()
 
 
 def run_cnn(img_batch: np.ndarray):
@@ -179,11 +180,13 @@ def run_cnn(img_batch: np.ndarray):
 
     Returns: (label, is_accident, confidence)
     """
-    raw         = cnn_model.predict(img_batch, verbose=0)     # (1, 2)
+    # Direct model call avoids predict graph setup overhead for 5-10x speedup
+    raw_tensor = cnn_model(img_batch, training=False)
+    raw = raw_tensor.numpy()
     thresholded = (raw > 0.5).astype("int32")
     is_accident = bool(thresholded[0][0] == 1)
-    label       = "Accident Detected" if is_accident else "No Accident"
-    confidence  = float(raw[0][0] if is_accident else raw[0][1])
+    label = "Accident Detected" if is_accident else "No Accident"
+    confidence = float(raw[0][0] if is_accident else raw[0][1])
     return label, is_accident, confidence
 
 
@@ -388,7 +391,7 @@ async def analyze(
             if not grabbed:
                 break
 
-            if c % frame_skip == 0:
+            if (c - 1) % frame_skip == 0:
                 img_batch              = preprocess_frame(frame)
                 label, is_acc, conf   = run_cnn(img_batch)
 
