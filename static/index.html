@@ -1211,7 +1211,7 @@ function renderResults(data) {
     setTimeout(() => { 
       addTLI(r); 
       updateLP(r); 
-      if (r.isAccident) {
+      if (r.isAccident && data.video_is_accident) {
         flash();
         if (!hasSpoken) {
           speakAlert(`Collision incident flagged at ${document.getElementById('cfgLoc').value || 'NHK Junction'}. High risk level detected.`);
@@ -1223,8 +1223,10 @@ function renderResults(data) {
 
   setTimeout(() => {
     const b = document.getElementById('pb');
-    document.getElementById('pbt').textContent = `SCAN COMPLETE · ${accCount} COLLISIONS DETECTED · ${data.accident_rate}% ACCIDENT RATIO`;
-    b.className = `pb show ${accCount > 0 ? 'accident' : 'safe'}`;
+    document.getElementById('pbt').textContent = data.video_is_accident 
+      ? `SCAN COMPLETE · ${accCount} COLLISIONS DETECTED · ${data.accident_rate}% ACCIDENT RATIO`
+      : `SCAN COMPLETE · NO VEHICULAR ACCIDENT DETECTED`;
+    b.className = `pb show ${data.video_is_accident ? 'accident' : 'safe'}`;
     
     const btn = document.getElementById('aBtn');
     btn.disabled = false;
@@ -1234,7 +1236,7 @@ function renderResults(data) {
     document.getElementById('jsonBtn').disabled = false;
     
     addIncFromAnalysis(data);
-    updateHeatmapDots();
+    updateHeatmapDots(data.video_is_accident);
   }, results.length * 30 + 300);
 }
 
@@ -1827,9 +1829,9 @@ async function loadHeatmap() {
   }
 }
 
-function updateHeatmapDots() {
+function updateHeatmapDots(videoIsAccident) {
   const loc = document.getElementById('cfgLoc').value || 'Junction Alpha';
-  if (accCount > 0) {
+  if (videoIsAccident) {
     hmData.push({ lat: 19.076, lng: 72.877, weight: accCount, time: new Date().toISOString(), loc });
     renderHeatmap();
   }

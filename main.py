@@ -271,9 +271,9 @@ def send_push_alert(accident_count: int):
         log.error(f"Push notification failed: {e}")
 
 
-def trigger_all_alerts(accident_count: int, video_name: str, accident_rate: float):
+def trigger_all_alerts(video_is_accident: bool, accident_count: int, video_name: str, accident_rate: float):
     """Run all alerts in a background thread."""
-    if accident_count == 0:
+    if not video_is_accident:
         return
     threading.Thread(
         target=lambda: [
@@ -431,6 +431,24 @@ async def analyze(
     if acc_frames:
         peak = max(acc_frames, key=lambda r: r["confidence"])
 
+    # Calculate consecutive accident frames
+    max_consecutive = 0
+    current_consecutive = 0
+    for r in results:
+        if r["isAccident"]:
+            current_consecutive += 1
+            max_consecutive = max(max_consecutive, current_consecutive)
+        else:
+            current_consecutive = 0
+
+    # Decision heuristic
+    if processed == 0:
+        video_is_accident = False
+    elif processed == 1:
+        video_is_accident = bool(results[0]["isAccident"])
+    else:
+        video_is_accident = bool((max_consecutive >= 2) or (accident_rate >= 30.0 and accident_count >= 2))
+
     # ── Build incident record ──────────────────────────────────────
     incident = {
         "video_name":     video.filename,
@@ -447,15 +465,16 @@ async def analyze(
         "peak_time":      peak["time"] if peak else None,
         "peak_confidence": peak["confidence"] if peak else None,
         "timestamp":      datetime.now().isoformat(),
+        "video_is_accident": video_is_accident,
         "results":        results,
     }
 
     # ── Background: save to DB + send alerts ──────────────────────
     background_tasks.add_task(save_incident, incident.copy())
-    background_tasks.add_task(trigger_all_alerts, accident_count, video.filename, accident_rate)
+    background_tasks.add_task(trigger_all_alerts, video_is_accident, accident_count, video.filename, accident_rate)
 
     # ── Update heatmap store ───────────────────────────────────────
-    if accident_count > 0:
+    if video_is_accident:
         heatmap_store.append({
             "lat":    lat,
             "lng":    lng,
@@ -503,6 +522,7 @@ def live_start():
 
         log.info(f"🎥  Live detection started — source: {CAMERA_SOURCE}")
         c = 1
+        recent_predictions = []
         while live_running:
             ret, frame = cap.read()
             if not ret:
@@ -512,10 +532,23 @@ def live_start():
                 try:
                     img_batch          = preprocess_frame(frame)
                     label, is_acc, conf = run_cnn(img_batch)
+                    
+                    recent_predictions.append(is_acc)
+                    if len(recent_predictions) > 3:
+                        recent_predictions.pop(0)
+                        
+                    # Trigger alert only if we have at least 2 consecutive detections in the buffer
+                    should_alert = len(recent_predictions) >= 2 and recent_predictions[-1] and recent_predictions[-2]
+                    
                     if is_acc:
-                        log.warning(f"🚨  LIVE ACCIDENT — frame {c}, conf {conf:.2f}")
+                        log.warning(f"🚨  LIVE DETECTION — frame {c}, conf {conf:.2f} (Consecutive Alert Trigger = {should_alert})")
+                        
+                    if should_alert:
+                        log.warning(f"🚨  LIVE ACCIDENT ALERT DISPATCHED — frame {c}, conf {conf:.2f}")
                         send_sms_alert(1, f"Live camera — frame {c}")
                         send_email_alert(1, "Live CCTV", round(conf * 100, 1))
+                        # Reset window after alert to avoid repeated spam alerts for the same event
+                        recent_predictions.clear()
                 except Exception as e:
                     log.error(f"Live detection error: {e}")
             c += 1
@@ -542,12 +575,12 @@ async def test_alert(alert_type: str):
 
     if alert_type == "email":
         # Call your existing email function
-        # send_email_alert(1, "Manual_Trigger.mp4", 100.0)
+        send_email_alert(1, "Manual_Trigger.mp4", 100.0)
         return {"message": "Email sent"}
 
     elif alert_type == "sms":
         # Call your existing Twilio function
-        # send_sms_alert(1, location)
+        send_sms_alert(1, location)
         return {"message": "SMS sent"}
 
     raise HTTPException(status_code=400, detail="Invalid alert type")
@@ -570,6 +603,7 @@ def live_stream():
         last_label = "Analyzing..."
         last_color = (255, 200, 0)
 
+        recent_predictions = []
         while True:
             ret, frame = cap.read()
             if not ret:
@@ -578,9 +612,22 @@ def live_stream():
             if c % FRAME_SKIP == 0 and cnn_model is not None:
                 try:
                     img_batch           = preprocess_frame(frame)
-                    label, is_acc, conf = run_cnn(img_batch)
-                    last_label = f"{label}  ({conf:.0%})"
-                    last_color = (0, 0, 255) if is_acc else (0, 255, 0)
+                    raw_tensor          = cnn_model(img_batch, training=False)
+                    raw                 = raw_tensor.numpy()
+                    is_acc              = bool((raw > 0.5)[0][0] == 1)
+                    
+                    recent_predictions.append(is_acc)
+                    if len(recent_predictions) > 3:
+                        recent_predictions.pop(0)
+                        
+                    is_accident_smoothed = len(recent_predictions) >= 2 and recent_predictions[-1] and recent_predictions[-2]
+                    
+                    if is_accident_smoothed:
+                        last_label = f"Accident Detected  ({raw[0][0]:.0%})"
+                        last_color = (0, 0, 255)  # Red
+                    else:
+                        last_label = f"No Accident  ({raw[0][1]:.0%})"
+                        last_color = (0, 255, 0)  # Green
                 except Exception:
                     pass
 
